@@ -1,0 +1,71 @@
+<!DOCTYPE html>
+<html lang="es">
+
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Vinted Tracker - Registro de Ventas</title>
+    <link rel="stylesheet" href="style.css">
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet">
+</head>
+
+<body>
+    <div class="container">
+        <div class="glass-card">
+            <div class="header">
+                <h1>👟 Stock Tracker</h1>
+            </div>
+
+            <form id="sales-form">
+                <div class="form-group">
+                    <label for="affiliate">Vendido por (Afiliado)</label>
+                    <select id="affiliate" required>
+                        <option value="" disabled selected>Selecciona un afiliado</option>
+                    </select>
+                </div>
+
+                <div class="form-group">
+                    <label for="product">Producto</label>
+                    <select id="product" required>
+                        <option value="" disabled selected>Selecciona un producto</option>
+                    </select>
+                </div>
+
+                <div class="form-group">
+                    <label for="color">Color</label>
+                    <select id="color" disabled required>
+                        <option value="" disabled selected>Selecciona un color</option>
+                    </select>
+                </div>
+
+                <div class="form-group">
+                    <label for="size">Talla</label>
+                    <select id="size" disabled required>
+                        <option value="" disabled selected>Selecciona una talla</option>
+                    </select>
+                </div>
+
+                <div class="form-group">
+                    <label for="price">Precio de Venta (€)</label>
+                    <input type="text" inputmode="decimal" id="price" placeholder="Ej: 65,00" required
+                        pattern="^\d+([.,]\d+)?$">
+                </div>
+
+                <div class="form-group">
+                    <label for="date">Fecha de Venta</label>
+                    <input type="date" id="date" required>
+                </div>
+
+                <button type="submit" id="save-btn" class="submit-btn">
+                    <span>Guardar Venta</span>
+                    <div class="loader-spinner" style="display: none;"></div>
+                </button>
+                <div id="status-message" class="status-message"></div>
+            </form>
+        </div>
+    </div>
+
+    <script src="script.js"></script>
+</body>
+
+</html>
