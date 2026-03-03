@@ -1,4 +1,4 @@
-const API_URL = 'https://script.google.com/macros/s/AKfycbwJ5QKOJARxYp0T3q8oAHl6dbWsTLqitFCz2FubLPTvuNmQGwi_lLMsLhsuUiy3i5nAEA/exec';
+const API_URL = 'https://script.google.com/macros/s/AKfycbxV-GR9HvCFMt3AZPWYfwruYc97cAcRpmvbDDcEcCFylZoUxmUyJsmvgeNuObDt0HyUpA/exec';
 
 let availableStock = [];
 let affiliates = [];
@@ -57,7 +57,20 @@ function loadAffiliates() {
 // 3. Rellenar productos
 function loadProducts() {
     productSelect.innerHTML = '<option value="" disabled selected>Selecciona un producto</option>';
-    const uniqueProducts = [...new Set(availableStock.map(item => item.Product))];
+
+    // Lista de los 5 modelos que obligatoriamente queremos mostrar
+    const allowedModels = [
+        "Nike Air Force",
+        "Adidas Spezial",
+        "Adidas Spezial Retro",
+        "On Cloud",
+        "Birkenstock"
+    ];
+
+    let uniqueProducts = [...new Set(availableStock.map(item => item.Product))];
+
+    // Mantenemos únicamente los que estén en nuestra lista permitida
+    uniqueProducts = uniqueProducts.filter(product => allowedModels.includes(product));
     uniqueProducts.forEach(product => {
         const option = document.createElement('option');
         option.value = product;
