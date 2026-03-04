@@ -164,6 +164,57 @@ function doPost(e) {
             return ContentService.createTextOutput(JSON.stringify({ "success": true, "message": "Stock añadido." })).setMimeType(ContentService.MimeType.JSON);
         }
 
+        if (body.action === "addStockBulk") {
+            var cart = body.cart || [];
+            var targetSheetName = "COMANDES";
+            var comandesSheet = spreadsheet.getSheetByName(targetSheetName);
+
+            if (!comandesSheet) {
+                return ContentService.createTextOutput(JSON.stringify({ "error": "Hoja COMANDES no existe" })).setMimeType(ContentService.MimeType.JSON);
+            }
+
+            var today = new Date();
+            var day = today.getDate();
+            var month = today.getMonth() + 1;
+            var year = today.getFullYear();
+            var dateLabel = day + "/" + (month < 10 ? "0" + month : month) + "/" + year;
+
+            var rowsToAppend = [];
+            var startRow = comandesSheet.getLastRow() + 1;
+            var currentRow = startRow;
+
+            for (var c = 0; c < cart.length; c++) {
+                var item = cart[c];
+                var newSizes = item.sizes || [];
+                var negativePrice = -Math.abs(item.boughtPrice);
+
+                for (var s = 0; s < newSizes.length; s++) {
+                    var size = newSizes[s];
+                    var formula = "=I" + currentRow + "+G" + currentRow;
+
+                    rowsToAppend.push([
+                        dateLabel,
+                        item.product,
+                        size,
+                        item.color,
+                        "",
+                        "Available",
+                        "",
+                        "",
+                        negativePrice,
+                        formula
+                    ]);
+                    currentRow++;
+                }
+            }
+
+            if (rowsToAppend.length > 0) {
+                comandesSheet.getRange(startRow, 1, rowsToAppend.length, rowsToAppend[0].length).setValues(rowsToAppend);
+            }
+
+            return ContentService.createTextOutput(JSON.stringify({ "success": true, "message": "Stock añadido en lote." })).setMimeType(ContentService.MimeType.JSON);
+        }
+
         // Si NO es addStock, sigue el flujo normal de VENTA
         var targetProduct = body.product;
         var targetColor = body.color;

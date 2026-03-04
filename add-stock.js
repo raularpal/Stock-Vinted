@@ -3,6 +3,7 @@ const API_URL = 'https://script.google.com/macros/s/AKfycbxV-GR9HvCFMt3AZPWYfwru
 let availableStock = [];
 let selectedProductVal = '';
 let selectedColorVal = ''; // Added to track selected color
+let cart = [];
 
 // DOM Elements
 const productsGrid = document.getElementById('products-grid');
@@ -16,16 +17,23 @@ const sizesGroup = document.getElementById('sizes-group');
 const sizesGrid = document.getElementById('sizes-grid');
 const priceInput = document.getElementById('price');
 const form = document.getElementById('add-stock-form');
-const saveBtnBtn = document.getElementById('save-btn');
+
+const addToCartBtn = document.getElementById('add-to-cart-btn');
+const saveAllBtn = document.getElementById('save-all-btn');
 const statusMessage = document.getElementById('status-message');
-const loaderSpinner = document.querySelector('.loader-spinner');
-const btnText = saveBtnBtn.querySelector('span');
+const loaderSpinner = saveAllBtn.querySelector('.loader-spinner');
+const btnText = saveAllBtn.querySelector('span');
+
+const cartItemsContainer = document.getElementById('cart-items');
+const cartTotalPairs = document.getElementById('cart-total-pairs');
+const cartTotalPrice = document.getElementById('cart-total-price');
 
 async function init() {
     try {
         btnText.textContent = "Cargando datos...";
         loaderSpinner.style.display = 'block';
-        saveBtnBtn.disabled = true;
+        saveAllBtn.disabled = true;
+        addToCartBtn.disabled = true;
 
         const response = await fetch(API_URL);
         const data = await response.json();
@@ -59,8 +67,9 @@ async function init() {
         // Cargar solo los modelos hardcodeados elegidos
         loadProducts(hardcodedProducts);
 
-        btnText.textContent = "Guardar Stock";
+        btnText.textContent = "🚀 Guardar Todo el Stock";
         loaderSpinner.style.display = 'none';
+        updateCartUI();
 
     } catch (error) {
         console.error("Error al cargar:", error);
@@ -354,13 +363,13 @@ function checkFormValidity() {
     let finalProduct = selectedProductVal === 'NEW' ? customProductVal : selectedProductVal;
 
     if (checkedBoxes.length > 0 && priceInput.value.trim() !== '' && finalColor !== '' && finalProduct !== '') {
-        saveBtnBtn.disabled = false;
+        addToCartBtn.disabled = false;
     } else {
-        saveBtnBtn.disabled = true;
+        addToCartBtn.disabled = true;
     }
 }
 
-form.addEventListener('submit', async (e) => {
+addToCartBtn.addEventListener('click', (e) => {
     e.preventDefault();
 
     const customColorVal = colorInput.value.trim();
@@ -376,9 +385,84 @@ form.addEventListener('submit', async (e) => {
 
     if (selectedSizes.length === 0 || finalProduct === '') return;
 
+    cart.push({
+        id: Date.now(),
+        product: finalProduct,
+        color: finalColor,
+        sizes: selectedSizes,
+        boughtPrice: boughtPrice
+    });
+
+    updateCartUI();
+
+    priceInput.value = '';
+    colorInput.value = '';
+    newProductInput.value = '';
+    selectedProductVal = '';
+    selectedColorVal = '';
+    productContainer.style.display = 'none';
+    colorContainer.style.display = 'none';
+    sizesGroup.style.display = 'none';
+    colorsGroup.style.display = 'none';
+    Array.from(productsGrid.children).forEach(child => {
+        child.style.background = 'rgba(255, 255, 255, 0.05)';
+        child.style.border = '1px solid var(--border-color)';
+    });
+    checkFormValidity();
+});
+
+function updateCartUI() {
+    cartItemsContainer.innerHTML = '';
+    let totalPairs = 0;
+    let totalPrice = 0;
+
+    if (cart.length === 0) {
+        cartItemsContainer.innerHTML = `
+            <div id="empty-cart-msg" style="text-align:center; color:var(--text-secondary); font-size:14px; margin:auto;">
+                El carrito está vacío
+            </div>
+        `;
+        saveAllBtn.disabled = true;
+    } else {
+        saveAllBtn.disabled = false;
+        cart.forEach(item => {
+            const pairsCount = item.sizes.length;
+            totalPairs += pairsCount;
+            const itemTotalPrice = item.boughtPrice * pairsCount;
+            totalPrice += itemTotalPrice;
+
+            const div = document.createElement('div');
+            div.className = 'cart-item';
+            div.innerHTML = `
+                <div class="cart-item-header">
+                    <div class="cart-item-title">${item.product} - ${item.color}</div>
+                    <button type="button" class="remove-btn" onclick="removeFromCart(${item.id})" title="Eliminar">🗑️</button>
+                </div>
+                <div style="display:flex; justify-content:space-between; align-items:center;">
+                    <div class="cart-item-sizes">Tallas: ${item.sizes.join(', ')} (${pairsCount} pares)</div>
+                    <div class="cart-item-price">${itemTotalPrice.toFixed(2)} €</div>
+                </div>
+            `;
+            cartItemsContainer.appendChild(div);
+        });
+    }
+
+    cartTotalPairs.textContent = totalPairs;
+    cartTotalPrice.textContent = totalPrice.toFixed(2) + ' €';
+}
+
+window.removeFromCart = function (id) {
+    cart = cart.filter(item => item.id !== id);
+    updateCartUI();
+};
+
+saveAllBtn.addEventListener('click', async () => {
+    if (cart.length === 0) return;
+
     btnText.style.display = 'none';
     loaderSpinner.style.display = 'block';
-    saveBtnBtn.disabled = true;
+    saveAllBtn.disabled = true;
+    addToCartBtn.disabled = true;
     statusMessage.className = 'status-message';
     statusMessage.style.display = 'none';
 
@@ -388,45 +472,35 @@ form.addEventListener('submit', async (e) => {
             mode: 'no-cors',
             headers: { 'Content-Type': 'text/plain' },
             body: JSON.stringify({
-                action: 'addStock',
-                product: finalProduct,
-                color: finalColor,
-                sizes: selectedSizes,
-                boughtPrice: boughtPrice
+                action: 'addStockBulk',
+                cart: cart
             })
         });
 
-        statusMessage.textContent = `¡${selectedSizes.length} pares añadidos al excel!`;
+        const totalAddedPairs = cart.reduce((acc, curr) => acc + curr.sizes.length, 0);
+        statusMessage.textContent = `¡${totalAddedPairs} pares añadidos al excel!`;
         statusMessage.className = 'status-message success';
+        statusMessage.style.display = 'block';
 
-        // Reset manual
-        priceInput.value = '';
-        colorInput.value = '';
-        newProductInput.value = '';
-        selectedProductVal = '';
-        selectedColorVal = '';
-        productContainer.style.display = 'none';
-        colorContainer.style.display = 'none';
-        sizesGroup.style.display = 'none';
-        colorsGroup.style.display = 'none';
-        Array.from(productsGrid.children).forEach(child => {
-            child.style.background = 'rgba(255, 255, 255, 0.05)';
-            child.style.border = '1px solid var(--border-color)';
-        });
+        cart = [];
+        updateCartUI();
 
         setTimeout(() => {
             statusMessage.style.display = 'none';
-            init(); // Recargamos
+            btnText.style.display = 'block';
+            init();
         }, 2000);
 
     } catch (err) {
-        console.error("Error al guardar:", err);
+        console.error("Error al guardar todo:", err);
         statusMessage.textContent = 'Error al registrar en Google.';
         statusMessage.className = 'status-message error';
+        statusMessage.style.display = 'block';
 
         btnText.style.display = 'block';
         loaderSpinner.style.display = 'none';
-        saveBtnBtn.disabled = false;
+        saveAllBtn.disabled = false;
+        checkFormValidity();
     }
 });
 
