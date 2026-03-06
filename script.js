@@ -1,4 +1,4 @@
-const API_URL = 'https://script.google.com/macros/s/AKfycbxV-GR9HvCFMt3AZPWYfwruYc97cAcRpmvbDDcEcCFylZoUxmUyJsmvgeNuObDt0HyUpA/exec';
+const API_URL = 'https://script.google.com/macros/s/AKfycbzArEqLLGoWx0GNV3gznkxsPLxVEvS7CgprXyMVa3RxNWAgJhFhWGezszQyELqja18HNA/exec';
 
 let availableStock = [];
 let affiliates = [];
