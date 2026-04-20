@@ -40,31 +40,17 @@ async function init() {
 
         availableStock = data.stock || [];
 
-        const hardcodedProducts = [
-            "Nike Air Force",
-            "Adidas Spezial",
-            "Adidas Spezial Retro",
-            "On Cloud",
-            "Birkenstock"
-        ];
-
-        // Solo usar estrictamente la lista fijada (nada del catálogo dinámico)
-        const myColors = {
-            "Nike Air Force": ["White"],
-            "Adidas Spezial": ["Black", "Blue", "PinkBlack", "Pink", "Red", "PinkRed", "Beige", "Brown", "DarkBrown", "LightBlue"],
-            "Adidas Spezial Retro": ["Pink", "Purple", "Green"],
-            "Birkenstock": ["Green", "Sand", "Brown", "Black", "Pink", "DarkBrown"],
-            "On Cloud": ["Black", "BlackWhite", "White", "Grey"]
-        };
+        const desiredStock = data.desiredStock || {};
+        const hardcodedProducts = Object.keys(desiredStock);
 
         let modelColorsMap = new Map();
-        for (const [model, colors] of Object.entries(myColors)) {
+        for (const [model, colors] of Object.entries(desiredStock)) {
             modelColorsMap.set(model, new Set(colors));
         }
 
         window.modelColorsMap = modelColorsMap;
 
-        // Cargar solo los modelos hardcodeados elegidos
+        // Cargar solo los modelos de la hoja Stock
         loadProducts(hardcodedProducts);
 
         btnText.textContent = "🚀 Guardar Todo el Stock";

@@ -62,15 +62,19 @@ function doGet(e) {
         // Recopilamos un catálogo de todos los modelos únicos que existen (hayan sido vendidos o no)
         var catalogList = [];
 
-        // Leer afiliados
-        var settingsSheet = spreadsheet.getSheetByName("SETTINGS");
+        // Leer afiliados (Cuentas)
+        var accountsSheet = spreadsheet.getSheetByName("Cuentas");
         var affiliatesList = [];
-        if (settingsSheet) {
-            var settingsData = settingsSheet.getDataRange().getValues();
-            for (var j = 1; j < settingsData.length; j++) {
-                var aff = settingsData[j][0];
-                if (aff) {
-                    affiliatesList.push(aff.toString());
+        if (accountsSheet) {
+            var accountsData = accountsSheet.getDataRange().getValues();
+            for (var j = 1; j < accountsData.length; j++) {
+                var mail = accountsData[j][0]; // Columna A
+                var ofi = accountsData[j][3];  // Columna D
+                if (mail && ofi) {
+                    affiliatesList.push({
+                        mail: mail.toString(),
+                        ofi: ofi.toString()
+                    });
                 }
             }
         }
@@ -107,11 +111,33 @@ function doGet(e) {
             }
         }
 
+        // Leer stock deseado (hoja 'Stock')
+        var stockSheet = spreadsheet.getSheetByName("Stock");
+        var desiredStock = {};
+        if (stockSheet) {
+            var stockData = stockSheet.getDataRange().getValues();
+            for (var k = 1; k < stockData.length; k++) {
+                var prdName = stockData[k][0];
+                var clrName = stockData[k][1];
+                if (prdName && clrName) {
+                    prdName = prdName.toString().trim();
+                    clrName = clrName.toString().trim();
+                    if (!desiredStock[prdName]) {
+                        desiredStock[prdName] = [];
+                    }
+                    if (!desiredStock[prdName].includes(clrName)) {
+                        desiredStock[prdName].push(clrName);
+                    }
+                }
+            }
+        }
+
         var result = {
             stock: availableStock,
             affiliates: affiliatesList,
             stats: allStats,
-            catalog: catalogList
+            catalog: catalogList,
+            desiredStock: desiredStock
         };
 
         return ContentService.createTextOutput(JSON.stringify(result)).setMimeType(ContentService.MimeType.JSON);

@@ -1,0 +1,536 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Restock Manager — Resell</title>
+  <style>
+    *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+
+    :root {
+      --bg: #f5f4f0;
+      --surface: #ffffff;
+      --surface2: #f0efe9;
+      --border: rgba(0,0,0,0.10);
+      --border2: rgba(0,0,0,0.18);
+      --text: #1a1a18;
+      --text2: #6b6b66;
+      --text3: #9a9a94;
+      --accent: #1a1a18;
+      --red-bg: #FCEBEB;
+      --red-text: #A32D2D;
+      --amber-bg: #FAEEDA;
+      --amber-text: #854F0B;
+      --blue-sel: #deeaf8;
+      --radius: 10px;
+      --radius-sm: 6px;
+    }
+
+    body {
+      font-family: 'Inter', 'Helvetica Neue', Arial, sans-serif;
+      background: var(--bg);
+      color: var(--text);
+      min-height: 100vh;
+      padding: 2rem 1rem;
+    }
+
+    .page { max-width: 900px; margin: 0 auto; }
+
+    .topbar {
+      display: flex;
+      align-items: flex-start;
+      justify-content: space-between;
+      margin-bottom: 1.75rem;
+      flex-wrap: wrap;
+      gap: 12px;
+    }
+
+    .topbar h1 {
+      font-size: 22px;
+      font-weight: 600;
+      letter-spacing: -0.5px;
+      color: var(--text);
+    }
+
+    .topbar p {
+      font-size: 13px;
+      color: var(--text2);
+      margin-top: 3px;
+    }
+
+    .btn-reload {
+      display: flex;
+      align-items: center;
+      gap: 6px;
+      background: var(--surface);
+      border: 0.5px solid var(--border2);
+      border-radius: var(--radius-sm);
+      padding: 8px 14px;
+      font-size: 13px;
+      font-weight: 500;
+      color: var(--text);
+      cursor: pointer;
+      transition: background 0.15s;
+    }
+    .btn-reload:hover { background: var(--surface2); }
+
+    .stats-grid {
+      display: grid;
+      grid-template-columns: repeat(auto-fit, minmax(130px, 1fr));
+      gap: 10px;
+      margin-bottom: 1.5rem;
+    }
+
+    .stat-card {
+      background: var(--surface);
+      border: 0.5px solid var(--border);
+      border-radius: var(--radius);
+      padding: 1rem 1.125rem;
+    }
+
+    .stat-label { font-size: 11px; color: var(--text2); font-weight: 500; text-transform: uppercase; letter-spacing: 0.5px; margin-bottom: 4px; }
+    .stat-value { font-size: 26px; font-weight: 600; color: var(--text); letter-spacing: -1px; }
+    .stat-value.red { color: var(--red-text); }
+    .stat-value.small { font-size: 18px; letter-spacing: -0.5px; }
+
+    .toolbar {
+      display: flex;
+      gap: 8px;
+      margin-bottom: 10px;
+      flex-wrap: wrap;
+    }
+
+    input[type="text"], select {
+      background: var(--surface);
+      border: 0.5px solid var(--border2);
+      border-radius: var(--radius-sm);
+      padding: 8px 12px;
+      font-size: 13px;
+      color: var(--text);
+      outline: none;
+      transition: border-color 0.15s, box-shadow 0.15s;
+    }
+    input[type="text"]:focus, select:focus {
+      border-color: #378ADD;
+      box-shadow: 0 0 0 3px rgba(55,138,221,0.15);
+    }
+    input[type="text"] { flex: 1; min-width: 160px; }
+    select { min-width: 150px; }
+
+    .status-bar {
+      font-size: 12px;
+      color: var(--text3);
+      margin-bottom: 8px;
+    }
+
+    .table-wrap {
+      background: var(--surface);
+      border: 0.5px solid var(--border);
+      border-radius: var(--radius);
+      overflow: hidden;
+      margin-bottom: 1.25rem;
+    }
+
+    table { width: 100%; border-collapse: collapse; table-layout: fixed; }
+
+    thead th {
+      background: var(--surface2);
+      font-size: 11px;
+      font-weight: 600;
+      color: var(--text2);
+      text-transform: uppercase;
+      letter-spacing: 0.4px;
+      padding: 9px 12px;
+      text-align: left;
+      border-bottom: 0.5px solid var(--border);
+    }
+
+    tbody tr {
+      border-bottom: 0.5px solid var(--border);
+      cursor: pointer;
+      transition: background 0.1s;
+    }
+    tbody tr:last-child { border-bottom: none; }
+    tbody tr:hover { background: var(--surface2); }
+    tbody tr.selected { background: var(--blue-sel); }
+
+    tbody td {
+      font-size: 13px;
+      color: var(--text);
+      padding: 8px 12px;
+      overflow: hidden;
+      text-overflow: ellipsis;
+      white-space: nowrap;
+    }
+
+    .col-check  { width: 38px; }
+    .col-prod   { width: 20%; }
+    .col-color  { width: 13%; }
+    .col-size   { width: 8%; }
+    .col-min    { width: 8%; }
+    .col-stock  { width: 10%; }
+    .col-need   { width: 8%; }
+    .col-price  { width: 15%; }
+
+    input[type="checkbox"] {
+      width: 15px; height: 15px; cursor: pointer; accent-color: var(--accent);
+    }
+
+    .badge {
+      display: inline-block;
+      font-size: 11px;
+      font-weight: 600;
+      padding: 2px 8px;
+      border-radius: 20px;
+    }
+    .badge-red   { background: var(--red-bg);   color: var(--red-text); }
+    .badge-amber { background: var(--amber-bg); color: var(--amber-text); }
+    .badge-ok    { background: #EAF3DE; color: #3B6D11; }
+
+    .price-input {
+      width: 80px;
+      font-size: 12px;
+      padding: 5px 7px;
+      border: 0.5px solid var(--border2);
+      border-radius: var(--radius-sm);
+      background: var(--surface);
+      color: var(--text);
+      outline: none;
+    }
+    .price-input:focus { border-color: #378ADD; box-shadow: 0 0 0 2px rgba(55,138,221,0.15); }
+
+    .footer {
+      display: flex;
+      align-items: center;
+      gap: 14px;
+      flex-wrap: wrap;
+    }
+
+    .btn-primary {
+      background: var(--accent);
+      color: #fff;
+      border: none;
+      border-radius: var(--radius-sm);
+      padding: 9px 20px;
+      font-size: 13px;
+      font-weight: 600;
+      cursor: pointer;
+      transition: opacity 0.15s;
+    }
+    .btn-primary:hover { opacity: 0.85; }
+    .btn-primary:disabled { opacity: 0.35; cursor: not-allowed; }
+
+    .sel-count { font-size: 13px; color: var(--text2); }
+    .save-status { font-size: 12px; color: var(--text3); }
+
+    .empty {
+      text-align: center;
+      padding: 2.5rem;
+      color: var(--text2);
+      font-size: 13px;
+    }
+
+    .toast {
+      position: fixed;
+      bottom: 24px;
+      right: 24px;
+      background: var(--accent);
+      color: #fff;
+      padding: 11px 18px;
+      border-radius: var(--radius-sm);
+      font-size: 13px;
+      font-weight: 500;
+      opacity: 0;
+      transition: opacity 0.25s;
+      pointer-events: none;
+      z-index: 9999;
+      max-width: 300px;
+      box-shadow: 0 4px 16px rgba(0,0,0,0.15);
+    }
+    .toast.show { opacity: 1; }
+
+    .need-text { font-weight: 600; color: var(--red-text); }
+
+    @media (max-width: 600px) {
+      .col-min, .col-check { display: none; }
+      .col-prod { width: 28%; }
+    }
+  </style>
+</head>
+<body>
+<div class="page">
+
+  <div class="topbar">
+    <div>
+      <h1>Restock Manager</h1>
+      <p>Stock mínimo vs stock actual · Guarda pedidos en COMANDES</p>
+    </div>
+    <button class="btn-reload" onclick="loadData()">
+      <svg width="14" height="14" viewBox="0 0 16 16" fill="none" xmlns="http://www.w3.org/2000/svg">
+        <path d="M13.65 2.35A8 8 0 1 0 15 8h-2a6 6 0 1 1-1.06-3.4L9 7h6V1l-1.35 1.35z" fill="currentColor"/>
+      </svg>
+      Recargar
+    </button>
+  </div>
+
+  <div class="stats-grid">
+    <div class="stat-card"><div class="stat-label">A pedir</div><div class="stat-value" id="statTotal">—</div></div>
+    <div class="stat-card"><div class="stat-label">Críticos (0 ud.)</div><div class="stat-value red" id="statCrit">—</div></div>
+    <div class="stat-card"><div class="stat-label">Seleccionados</div><div class="stat-value" id="statSel">0</div></div>
+    <div class="stat-card"><div class="stat-label">Coste estimado</div><div class="stat-value small" id="statCost">0.00€</div></div>
+  </div>
+
+  <div class="toolbar">
+    <input type="text" id="filterText" placeholder="Buscar producto o color..." oninput="renderTable()" />
+    <select id="filterProduct" onchange="renderTable()"><option value="">Todos los productos</option></select>
+    <select id="filterUrgency" onchange="renderTable()">
+      <option value="">Toda urgencia</option>
+      <option value="critico">Crítico (sin stock)</option>
+      <option value="bajo">Stock bajo</option>
+    </select>
+  </div>
+
+  <div class="status-bar" id="statusBar"></div>
+
+  <div class="table-wrap">
+    <table>
+      <thead>
+        <tr>
+          <th class="col-check"><input type="checkbox" id="checkAll" onchange="toggleAll(this.checked)" /></th>
+          <th class="col-prod">Producto</th>
+          <th class="col-color">Color</th>
+          <th class="col-size">Talla</th>
+          <th class="col-min">Mín.</th>
+          <th class="col-stock">Stock</th>
+          <th class="col-need">Faltan</th>
+          <th class="col-price">Precio compra</th>
+        </tr>
+      </thead>
+      <tbody id="tableBody">
+        <tr><td colspan="8" class="empty">Cargando datos...</td></tr>
+      </tbody>
+    </table>
+  </div>
+
+  <div class="footer">
+    <button class="btn-primary" id="saveBtn" onclick="saveSelected()" disabled>Guardar en COMANDES</button>
+    <span class="sel-count" id="selCount">0 seleccionados</span>
+    <span class="save-status" id="saveStatus"></span>
+  </div>
+</div>
+
+<div class="toast" id="toast"></div>
+
+<script>
+  const SHEET_ID   = '1IFhYu-dW8k_aOBHN5lYIrDCN0uvGpzMLtF50SCl2RyA';
+  const API_KEY    = 'AIzaSyA2RjJrfSk-hn20Y2BAIeubX9uGiMydXV8';
+  const SCRIPT_URL = 'https://script.google.com/macros/s/AKfycbxH3M1Fh9zEN7dYtj6iSIZ486uvymsHjcWPruFoCY6LmLhqdx5QaM6yoObOPKVJcTqOZQ/exec';
+
+  let restockItems = [];
+  let selected = new Set();
+  let prices = {};
+
+  function showToast(msg, dur = 3500) {
+    const t = document.getElementById('toast');
+    t.textContent = msg;
+    t.classList.add('show');
+    setTimeout(() => t.classList.remove('show'), dur);
+  }
+
+  async function loadData() {
+    document.getElementById('tableBody').innerHTML = '<tr><td colspan="8" class="empty">Cargando...</td></tr>';
+    document.getElementById('statusBar').textContent = '';
+    selected.clear(); prices = {};
+    updateStats();
+
+    try {
+      const base = `https://sheets.googleapis.com/v4/spreadsheets/${SHEET_ID}/values`;
+      const [sRes, cRes] = await Promise.all([
+        fetch(`${base}/Stock!A:D?key=${API_KEY}`),
+        fetch(`${base}/COMANDES!A:I?key=${API_KEY}`)
+      ]);
+      if (!sRes.ok) { const e = await sRes.json(); throw new Error(e.error?.message || 'Error leyendo Stock'); }
+      if (!cRes.ok) { const e = await cRes.json(); throw new Error(e.error?.message || 'Error leyendo COMANDES'); }
+
+      const stock    = (await sRes.json()).values || [];
+      const comandes = (await cRes.json()).values || [];
+      processData(stock, comandes);
+    } catch (e) {
+      document.getElementById('tableBody').innerHTML = `<tr><td colspan="8" class="empty">❌ ${e.message}</td></tr>`;
+      showToast('Error: ' + e.message, 6000);
+    }
+  }
+
+  function processData(stockRows, comandesRows) {
+    const minMap = {};
+    for (let i = 1; i < stockRows.length; i++) {
+      const r = stockRows[i];
+      if (!r[0]) continue;
+      const k = `${r[0]}||${r[1]}||${r[2]}`;
+      minMap[k] = { product: r[0], color: r[1] || '', size: r[2] || '', minimo: parseInt(r[3]) || 1 };
+    }
+
+    const currentStock = {};
+    for (let i = 1; i < comandesRows.length; i++) {
+      const r = comandesRows[i];
+      if (!r[1]) continue;
+      if ((r[5] || '').toLowerCase() === 'available') {
+        const k = `${r[1]}||${r[3]}||${r[2]}`;
+        currentStock[k] = (currentStock[k] || 0) + 1;
+      }
+    }
+
+    restockItems = [];
+    for (const k in minMap) {
+      const item = minMap[k];
+      const actual = currentStock[k] || 0;
+      const falta  = item.minimo - actual;
+      if (falta > 0) restockItems.push({ key: k, ...item, actual, falta });
+    }
+    restockItems.sort((a, b) => a.actual - b.actual || b.falta - a.falta);
+
+    const products = [...new Set(restockItems.map(x => x.product))];
+    const sel = document.getElementById('filterProduct');
+    sel.innerHTML = '<option value="">Todos los productos</option>';
+    products.forEach(p => { const o = document.createElement('option'); o.value = p; o.textContent = p; sel.appendChild(o); });
+
+    updateStats();
+    renderTable();
+    showToast(`✓ Datos cargados — ${restockItems.length} artículos a reponer`);
+  }
+
+  function getFiltered() {
+    const txt  = document.getElementById('filterText').value.toLowerCase();
+    const prod = document.getElementById('filterProduct').value;
+    const urg  = document.getElementById('filterUrgency').value;
+    return restockItems.filter(i => {
+      if (txt && !i.product.toLowerCase().includes(txt) && !i.color.toLowerCase().includes(txt)) return false;
+      if (prod && i.product !== prod) return false;
+      if (urg === 'critico' && i.actual !== 0) return false;
+      if (urg === 'bajo'    && i.actual === 0) return false;
+      return true;
+    });
+  }
+
+  function renderTable() {
+    const items = getFiltered();
+    document.getElementById('statusBar').textContent = `Mostrando ${items.length} de ${restockItems.length} artículos`;
+
+    if (!items.length) {
+      document.getElementById('tableBody').innerHTML = '<tr><td colspan="8" class="empty">Sin resultados para los filtros actuales</td></tr>';
+      return;
+    }
+
+    document.getElementById('tableBody').innerHTML = items.map(item => {
+      const isSel    = selected.has(item.key);
+      const badgeCls = item.actual === 0 ? 'badge-red' : 'badge-amber';
+      const p        = prices[item.key] || '';
+      const ek       = encodeKey(item.key);
+      return `<tr class="${isSel ? 'selected' : ''}" onclick="toggleRow('${ek}', event)">
+        <td class="col-check" onclick="event.stopPropagation()">
+          <input type="checkbox" ${isSel ? 'checked' : ''} onchange="toggleRow('${ek}', event)" />
+        </td>
+        <td class="col-prod" title="${item.product}">${item.product}</td>
+        <td class="col-color">${item.color}</td>
+        <td class="col-size">${item.size}</td>
+        <td class="col-min">${item.minimo}</td>
+        <td class="col-stock"><span class="badge ${badgeCls}">${item.actual}</span></td>
+        <td class="col-need"><span class="need-text">${item.falta}</span></td>
+        <td class="col-price" onclick="event.stopPropagation()">
+          <input class="price-input" type="number" min="0" step="0.01" placeholder="€"
+            value="${p}" oninput="setPrice('${ek}', this.value)" />
+        </td>
+      </tr>`;
+    }).join('');
+
+    updateStats();
+  }
+
+  const keyMap = {};
+  function encodeKey(key) {
+    const id = 'k' + Math.random().toString(36).slice(2);
+    keyMap[id] = key;
+    return id;
+  }
+  function decodeKey(id) { return keyMap[id] || id; }
+
+  function setPrice(eid, val) {
+    const key = decodeKey(eid);
+    prices[key] = val;
+    updateStats();
+  }
+
+  function toggleRow(eid, e) {
+    if (e && e.target && (e.target.type === 'number' || e.target.tagName === 'INPUT' && e.target.type !== 'checkbox')) return;
+    const key = decodeKey(eid);
+    if (selected.has(key)) selected.delete(key); else selected.add(key);
+    updateStats();
+    renderTable();
+  }
+
+  function toggleAll(checked) {
+    getFiltered().forEach(i => checked ? selected.add(i.key) : selected.delete(i.key));
+    updateStats();
+    renderTable();
+  }
+
+  function updateStats() {
+    document.getElementById('statTotal').textContent = restockItems.length || '—';
+    document.getElementById('statCrit').textContent  = restockItems.filter(x => x.actual === 0).length || '—';
+    document.getElementById('statSel').textContent   = selected.size;
+
+    let cost = 0;
+    restockItems.filter(x => selected.has(x.key)).forEach(x => {
+      cost += (parseFloat(prices[x.key]) || 0) * x.falta;
+    });
+    document.getElementById('statCost').textContent = cost.toFixed(2) + '€';
+    document.getElementById('saveBtn').disabled     = selected.size === 0;
+    document.getElementById('selCount').textContent = `${selected.size} seleccionado${selected.size !== 1 ? 's' : ''}`;
+  }
+
+  async function saveSelected() {
+    const items = restockItems.filter(x => selected.has(x.key));
+    if (!items.length) return;
+
+    const btn = document.getElementById('saveBtn');
+    btn.textContent = 'Guardando...';
+    btn.disabled    = true;
+    document.getElementById('saveStatus').textContent = '';
+
+    const today   = new Date();
+    const dateStr = `${today.getDate().toString().padStart(2,'0')}/${(today.getMonth()+1).toString().padStart(2,'0')}/${today.getFullYear()}`;
+
+    const rows = [];
+    items.forEach(item => {
+      for (let i = 0; i < item.falta; i++) {
+        rows.push({
+          product: item.product,
+          size:    item.size,
+          color:   item.color,
+          status:  'Available',
+          date:    dateStr,
+          bought:  prices[item.key] ? parseFloat(prices[item.key]).toFixed(2) + '€' : ''
+        });
+      }
+    });
+
+    try {
+      const res    = await fetch(SCRIPT_URL, { method: 'POST', body: JSON.stringify({ action: 'addToComandes', rows }) });
+      const result = await res.json();
+      if (result.success) {
+        showToast(`✓ ${rows.length} filas añadidas a COMANDES`);
+        document.getElementById('saveStatus').textContent = `Último guardado: ${rows.length} filas — ${dateStr}`;
+        selected.clear(); prices = {};
+        await loadData();
+      } else throw new Error(result.error || 'Error desconocido');
+    } catch (e) {
+      showToast('Error al guardar: ' + e.message, 6000);
+      btn.textContent = 'Guardar en COMANDES';
+      btn.disabled    = false;
+    }
+  }
+
+  loadData();
+</script>
+</body>
+</html>

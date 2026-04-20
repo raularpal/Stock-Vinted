@@ -43,13 +43,13 @@ async function loadDataFromExcel() {
     }
 }
 
-// 2. Rellenar afiliados
+// 2. Rellenar afiliados (Ofi)
 function loadAffiliates() {
-    affiliateSelect.innerHTML = '<option value="" disabled selected>Selecciona un afiliado</option>';
+    affiliateSelect.innerHTML = '<option value="" disabled selected>Selecciona Ofi</option>';
     affiliates.forEach(aff => {
         const option = document.createElement('option');
-        option.value = aff;
-        option.textContent = aff;
+        option.value = aff.mail; // Guardamos el mail internamente
+        option.textContent = "Ofi " + aff.ofi; // Mostramos el número de Ofi
         affiliateSelect.appendChild(option);
     });
 }
