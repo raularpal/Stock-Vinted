@@ -5,7 +5,26 @@ function doGet(e) {
         var availableStock = [];
         var allStats = [];
 
+        // Función para buscar una hoja por nombre (insensible a mayúsculas/minúsculas)
+        function getSheet(name) {
+            var all = spreadsheet.getSheets();
+            for (var i = 0; i < all.length; i++) {
+                var sName = all[i].getName().trim().toUpperCase();
+                if (sName === name.toUpperCase()) return all[i];
+            }
+            // Fallback: buscar si contiene la palabra
+            for (var i = 0; i < all.length; i++) {
+                var sName = all[i].getName().trim().toUpperCase();
+                if (sName.indexOf(name.toUpperCase()) !== -1) return all[i];
+            }
+            return null;
+        }
+
         // Recorrer todas las hojas (para coger históricos de 2025, etc.)
+        var comandesSheetName = "COMANDES";
+        var comandesSheetObj = getSheet(comandesSheetName);
+        var actualComandesName = comandesSheetObj ? comandesSheetObj.getName().toUpperCase() : "COMANDES";
+
         for (var s = 0; s < sheets.length; s++) {
             var currentSheet = sheets[s];
             var sheetName = currentSheet.getName();
@@ -45,74 +64,20 @@ function doGet(e) {
 
                 // Extrae los que su columna Status sea "Available" en cualquier hoja
                 // NUEVO: Filtramos para que SOLO recoja el stock disponible de la pestaña "COMANDES".
-                // De esta manera ignoramos las pestañas antiguas como "xx" o "COMANDESv2" que tienen inventario obsoleto.
-                if (status && status.toString().trim().toLowerCase() === "available" && sheetName.toUpperCase() === "COMANDES") {
+                if (status && status.toString().trim().toLowerCase() === "available" && sheetName.toUpperCase() === actualComandesName) {
                     availableStock.push({
                         Product: row[1],
                         Size: row[2].toString(),
                         Color: row[3],
-                        BoughtPrice: boughtPrice, // GUARDAMOS ESTO PARA EL CÁLCULO PRECISO DEL INVENTARIO MÚLTIPLE
-                        SheetName: sheetName // Guardamos su hoja origen para el doPost
+                        BoughtPrice: boughtPrice,
+                        SheetName: sheetName
                     });
-                }
-            }
-        }
-
-
-        // Recopilamos un catálogo de todos los modelos únicos que existen (hayan sido vendidos o no)
-        var catalogList = [];
-
-        // Leer afiliados (Cuentas)
-        var accountsSheet = spreadsheet.getSheetByName("Cuentas");
-        var affiliatesList = [];
-        if (accountsSheet) {
-            var accountsData = accountsSheet.getDataRange().getValues();
-            for (var j = 1; j < accountsData.length; j++) {
-                var mail = accountsData[j][0]; // Columna A
-                var ofi = accountsData[j][3];  // Columna D
-                if (mail && ofi) {
-                    affiliatesList.push({
-                        mail: mail.toString(),
-                        ofi: ofi.toString()
-                    });
-                }
-            }
-        }
-
-        // Función rápida para limpiar duplicados del catálogo
-        var uniqueCatalog = [];
-        var catalogMap = {};
-
-        for (var c = 0; c < allStats.length; c++) {
-            // Recuperar los nombres de la hoja directamente (nos basamos en availableStock y extras que leamos)
-            // Nota: En la versión anterior doGET, allStats no guardaba Product ni Color, así que lo añadimos aquí a mano
-        }
-
-        // Mejor manera: vamos a extraer todo el catálogo de las hojas directamente
-        for (var s = 0; s < sheets.length; s++) {
-            var sheet = sheets[s];
-            if (sheet.getName().toUpperCase() === "SETTINGS") continue;
-            var data2 = sheet.getDataRange().getValues();
-            for (var i2 = 1; i2 < data2.length; i2++) {
-                var r = data2[i2];
-                if (r.length < 4) continue;
-                var prd = r[1];
-                var col = r[3];
-                if (prd && prd.toString().toUpperCase() !== "MODELO") {
-                    var key = prd + "_" + col;
-                    if (!catalogMap[key]) {
-                        catalogMap[key] = true;
-                        catalogList.push({
-                            Product: prd,
-                            Color: col
-                        });
-                    }
                 }
             }
         }
 
         // Leer stock deseado (hoja 'Stock')
-        var stockSheet = spreadsheet.getSheetByName("Stock");
+        var stockSheet = getSheet("Stock");
         var desiredStock = {};
         if (stockSheet) {
             var stockData = stockSheet.getDataRange().getValues();
@@ -132,6 +97,51 @@ function doGet(e) {
             }
         }
 
+
+        // Recopilamos un catálogo de todos los modelos únicos que existen (hayan sido vendidos o no)
+        var catalogList = [];
+        var catalogMap = {};
+
+        // Leer afiliados (Cuentas)
+        var accountsSheet = getSheet("Cuentas");
+        var affiliatesList = [];
+        if (accountsSheet) {
+            var accountsData = accountsSheet.getDataRange().getValues();
+            for (var j = 1; j < accountsData.length; j++) {
+                var mail = accountsData[j][0]; // Columna A
+                var ofi = accountsData[j][3];  // Columna D
+                if (mail && ofi) {
+                    affiliatesList.push({
+                        mail: mail.toString(),
+                        ofi: ofi.toString()
+                    });
+                }
+            }
+        }
+
+        // Extraer catálogo de todas las hojas
+        for (var s = 0; s < sheets.length; s++) {
+            var sheet = sheets[s];
+            if (sheet.getName().toUpperCase() === "SETTINGS") continue;
+            var data2 = sheet.getDataRange().getValues();
+            for (var i2 = 1; i2 < data2.length; i2++) {
+                var r = data2[i2];
+                if (r.length < 4) continue;
+                var prd = r[1];
+                var col = r[3];
+                if (prd && prd.toString().toUpperCase() !== "MODELO") {
+                    var key = prd + "_" + col;
+                    if (!catalogMap[key]) {
+                        catalogMap[key] = true;
+                        catalogList.push({
+                            Product: prd.toString().trim(),
+                            Color: col.toString().trim()
+                        });
+                    }
+                }
+            }
+        }
+
         var result = {
             stock: availableStock,
             affiliates: affiliatesList,
@@ -139,6 +149,7 @@ function doGet(e) {
             catalog: catalogList,
             desiredStock: desiredStock
         };
+
 
         return ContentService.createTextOutput(JSON.stringify(result)).setMimeType(ContentService.MimeType.JSON);
     } catch (e) {

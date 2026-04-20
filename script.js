@@ -1,4 +1,4 @@
-const API_URL = 'https://script.google.com/macros/s/AKfycbzArEqLLGoWx0GNV3gznkxsPLxVEvS7CgprXyMVa3RxNWAgJhFhWGezszQyELqja18HNA/exec';
+const API_URL = 'https://script.google.com/macros/s/AKfycby4kQlZ_m4t_8bp9NS_7fm5mq7G5_6LzHSy2Y3xpyERI0ysub30GuOH9-YxFWsG-CzlTQ/exec';
 
 let availableStock = [];
 let affiliates = [];
@@ -54,30 +54,19 @@ function loadAffiliates() {
     });
 }
 
-// 3. Rellenar productos
 function loadProducts() {
     productSelect.innerHTML = '<option value="" disabled selected>Selecciona un producto</option>';
 
-    // Lista de los 5 modelos que obligatoriamente queremos mostrar
-    const allowedModels = [
-        "Nike Air Force",
-        "Adidas Spezial",
-        "Adidas Spezial Retro",
-        "On Cloud",
-        "Birkenstock"
-    ];
+    let uniqueProducts = [...new Set(availableStock.map(item => item.Product))].filter(p => p);
 
-    let uniqueProducts = [...new Set(availableStock.map(item => item.Product))];
-
-    // Mantenemos únicamente los que estén en nuestra lista permitida
-    uniqueProducts = uniqueProducts.filter(product => allowedModels.includes(product));
-    uniqueProducts.forEach(product => {
+    uniqueProducts.sort().forEach(product => {
         const option = document.createElement('option');
         option.value = product;
         option.textContent = product;
         productSelect.appendChild(option);
     });
 }
+
 
 // 4. Al seleccionar producto, cargar colores
 productSelect.addEventListener('change', (e) => {
@@ -89,13 +78,13 @@ productSelect.addEventListener('change', (e) => {
     colorSelect.disabled = false;
     sizeSelect.disabled = true;
 
-    const colorsForProduct = availableStock
-        .filter(item => item.Product === selectedProduct)
-        .map(item => item.Color);
+    const uniqueColors = [...new Set(
+        availableStock
+            .filter(item => (item.Product || "").toString().trim().toLowerCase() === selectedProduct.toString().trim().toLowerCase())
+            .map(item => item.Color.toString().trim())
+    )];
 
-    const uniqueColors = [...new Set(colorsForProduct)];
-
-    uniqueColors.forEach(color => {
+    uniqueColors.sort().forEach(color => {
         const option = document.createElement('option');
         option.value = color;
         option.textContent = color;
@@ -112,11 +101,14 @@ colorSelect.addEventListener('change', (e) => {
     sizeSelect.innerHTML = '<option value="" disabled selected>Selecciona una talla</option>';
     sizeSelect.disabled = false;
 
-    const sizesForProductAndColor = availableStock
-        .filter(item => item.Product === selectedProduct && item.Color === selectedColor)
-        .map(item => item.Size);
-
-    const uniqueSizes = [...new Set(sizesForProductAndColor)].sort((a, b) => a - b);
+    const uniqueSizes = [...new Set(
+        availableStock
+            .filter(item => 
+                (item.Product || "").toString().trim().toLowerCase() === selectedProduct.toString().trim().toLowerCase() && 
+                (item.Color || "").toString().trim().toLowerCase() === selectedColor.toString().trim().toLowerCase()
+            )
+            .map(item => item.Size.toString().trim())
+    )].sort((a, b) => parseFloat(a) - parseFloat(b));
 
     uniqueSizes.forEach(size => {
         const option = document.createElement('option');

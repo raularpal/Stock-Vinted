@@ -324,7 +324,7 @@
 <script>
   const SHEET_ID   = '1IFhYu-dW8k_aOBHN5lYIrDCN0uvGpzMLtF50SCl2RyA';
   const API_KEY    = 'AIzaSyA2RjJrfSk-hn20Y2BAIeubX9uGiMydXV8';
-  const SCRIPT_URL = 'https://script.google.com/macros/s/AKfycbxH3M1Fh9zEN7dYtj6iSIZ486uvymsHjcWPruFoCY6LmLhqdx5QaM6yoObOPKVJcTqOZQ/exec';
+  const SCRIPT_URL = 'https://script.google.com/macros/s/AKfycby4kQlZ_m4t_8bp9NS_7fm5mq7G5_6LzHSy2Y3xpyERI0ysub30GuOH9-YxFWsG-CzlTQ/exec';
 
   let restockItems = [];
   let selected = new Set();
@@ -372,21 +372,31 @@
 
     const currentStock = {};
     for (let i = 1; i < comandesRows.length; i++) {
-      const r = comandesRows[i];
-      if (!r[1]) continue;
-      if ((r[5] || '').toLowerCase() === 'available') {
-        const k = `${r[1]}||${r[3]}||${r[2]}`;
-        currentStock[k] = (currentStock[k] || 0) + 1;
-      }
+        const r = comandesRows[i];
+        if (!r[1]) continue;
+        const status = (r[5] || '').toString().trim().toLowerCase();
+        if (status === 'available') {
+            const prod = r[1].toString().trim().toLowerCase();
+            const size = r[2].toString().trim().toLowerCase();
+            const color = r[3].toString().trim().toLowerCase();
+            const k = `${prod}||${color}||${size}`;
+            currentStock[k] = (currentStock[k] || 0) + 1;
+        }
     }
 
     restockItems = [];
     for (const k in minMap) {
-      const item = minMap[k];
-      const actual = currentStock[k] || 0;
-      const falta  = item.minimo - actual;
-      if (falta > 0) restockItems.push({ key: k, ...item, actual, falta });
+        const item = minMap[k];
+        const prod = item.product.toString().trim().toLowerCase();
+        const color = (item.color || '').toString().trim().toLowerCase();
+        const size = item.size.toString().trim().toLowerCase();
+        const matchKey = `${prod}||${color}||${size}`;
+        
+        const actual = currentStock[matchKey] || 0;
+        const falta = item.minimo - actual;
+        if (falta > 0) restockItems.push({ key: k, ...item, actual, falta });
     }
+
     restockItems.sort((a, b) => a.actual - b.actual || b.falta - a.falta);
 
     const products = [...new Set(restockItems.map(x => x.product))];

@@ -1,4 +1,4 @@
-const API_URL = 'https://script.google.com/macros/s/AKfycbzArEqLLGoWx0GNV3gznkxsPLxVEvS7CgprXyMVa3RxNWAgJhFhWGezszQyELqja18HNA/exec';
+const API_URL = 'https://script.google.com/macros/s/AKfycby4kQlZ_m4t_8bp9NS_7fm5mq7G5_6LzHSy2Y3xpyERI0ysub30GuOH9-YxFWsG-CzlTQ/exec';
 
 let availableStock = [];
 let selectedProductVal = '';
@@ -39,8 +39,22 @@ async function init() {
         const data = await response.json();
 
         availableStock = data.stock || [];
+        const catalog = data.catalog || [];
 
-        const desiredStock = data.desiredStock || {};
+        // Si desiredStock viene vacío o no existe, lo construimos desde el catalog
+        let desiredStock = data.desiredStock || {};
+        if (Object.keys(desiredStock).length === 0 && catalog.length > 0) {
+            console.log("Usando catálogo como fallback para desiredStock");
+            catalog.forEach(item => {
+                if (!desiredStock[item.Product]) {
+                    desiredStock[item.Product] = [];
+                }
+                if (!desiredStock[item.Product].includes(item.Color)) {
+                    desiredStock[item.Product].push(item.Color);
+                }
+            });
+        }
+
         const hardcodedProducts = Object.keys(desiredStock);
 
         let modelColorsMap = new Map();
@@ -50,12 +64,13 @@ async function init() {
 
         window.modelColorsMap = modelColorsMap;
 
-        // Cargar solo los modelos de la hoja Stock
-        loadProducts(hardcodedProducts);
+        // Cargar modelos (alfabéticamente)
+        loadProducts(hardcodedProducts.sort());
 
         btnText.textContent = "🚀 Guardar Todo el Stock";
         loaderSpinner.style.display = 'none';
         updateCartUI();
+
 
     } catch (error) {
         console.error("Error al cargar:", error);
@@ -153,11 +168,14 @@ function onProductSelected() {
     const colorsWithMissing = [];
     colors.forEach(color => {
         const inStockSizes = availableStock
-            .filter(item =>
-                item.Product.trim().toLowerCase() === selectedProductVal.trim().toLowerCase() &&
-                item.Color.trim().toLowerCase() === color.trim().toLowerCase()
-            )
-            .map(item => item.Size.toString());
+            .filter(item => {
+                const itemProd = (item.Product || "").toString().trim().toLowerCase();
+                const selProd = (selectedProductVal || "").toString().trim().toLowerCase();
+                const itemColor = (item.Color || "").toString().trim().toLowerCase();
+                const selColor = (color || "").toString().trim().toLowerCase();
+                return itemProd === selProd && itemColor === selColor;
+            })
+            .map(item => item.Size.toString().trim());
 
         let missingCount = 0;
         for (let s = 36; s <= 44; s++) {
@@ -166,6 +184,7 @@ function onProductSelected() {
 
         colorsWithMissing.push({ color, missingCount, inStockSizes });
     });
+
 
     renderColorsGrid(colorsWithMissing.sort((a, b) => a.color.localeCompare(b.color)));
 }
