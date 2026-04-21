@@ -84,14 +84,20 @@ function doGet(e) {
             for (var k = 1; k < stockData.length; k++) {
                 var prdName = stockData[k][0];
                 var clrName = stockData[k][1];
+                var sizeVal = stockData[k][2];
                 if (prdName && clrName) {
                     prdName = prdName.toString().trim();
                     clrName = clrName.toString().trim();
+                    var sz = sizeVal ? sizeVal.toString().trim() : "";
+                    
                     if (!desiredStock[prdName]) {
-                        desiredStock[prdName] = [];
+                        desiredStock[prdName] = {};
                     }
-                    if (!desiredStock[prdName].includes(clrName)) {
-                        desiredStock[prdName].push(clrName);
+                    if (!desiredStock[prdName][clrName]) {
+                        desiredStock[prdName][clrName] = [];
+                    }
+                    if (sz && !desiredStock[prdName][clrName].includes(sz)) {
+                        desiredStock[prdName][clrName].push(sz);
                     }
                 }
             }

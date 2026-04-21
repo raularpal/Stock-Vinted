@@ -47,19 +47,28 @@ async function init() {
             console.log("Usando catálogo como fallback para desiredStock");
             catalog.forEach(item => {
                 if (!desiredStock[item.Product]) {
-                    desiredStock[item.Product] = [];
+                    desiredStock[item.Product] = {};
                 }
-                if (!desiredStock[item.Product].includes(item.Color)) {
-                    desiredStock[item.Product].push(item.Color);
+                if (!desiredStock[item.Product][item.Color]) {
+                    desiredStock[item.Product][item.Color] = ["36", "37", "38", "39", "40", "41", "42", "43", "44"];
                 }
             });
         }
 
+        window.desiredStock = desiredStock;
         const hardcodedProducts = Object.keys(desiredStock);
 
         let modelColorsMap = new Map();
-        for (const [model, colors] of Object.entries(desiredStock)) {
-            modelColorsMap.set(model, new Set(colors));
+        for (const [model, val] of Object.entries(desiredStock)) {
+            if (val && !Array.isArray(val) && typeof val === 'object') {
+                // Nueva estructura: { "Color1": ["Size1", ...]}
+                modelColorsMap.set(model, new Set(Object.keys(val)));
+            } else if (Array.isArray(val)) {
+                // Estructura vieja (o fallback parcial): ["Color1", "Color2"]
+                modelColorsMap.set(model, new Set(val));
+            } else {
+                modelColorsMap.set(model, new Set());
+            }
         }
 
         window.modelColorsMap = modelColorsMap;
@@ -163,11 +172,11 @@ function onProductSelected() {
     selectedColorVal = '';
     colorInput.value = '';
 
-    // Only use the specific hardcoded colors we defined for this product
     const colors = Array.from(window.modelColorsMap.get(selectedProductVal) || []);
     const colorsWithMissing = [];
     colors.forEach(color => {
-        const inStockSizes = availableStock
+        // Obtenemos los counts por talla
+        const inStockDetails = availableStock
             .filter(item => {
                 const itemProd = (item.Product || "").toString().trim().toLowerCase();
                 const selProd = (selectedProductVal || "").toString().trim().toLowerCase();
@@ -175,14 +184,23 @@ function onProductSelected() {
                 const selColor = (color || "").toString().trim().toLowerCase();
                 return itemProd === selProd && itemColor === selColor;
             })
-            .map(item => item.Size.toString().trim());
+            .reduce((acc, item) => {
+                const sz = item.Size.toString().trim();
+                acc[sz] = (acc[sz] || 0) + 1;
+                return acc;
+            }, {});
+
+        // Get target sizes for this product/color from desiredStock
+        const targetSizes = (window.desiredStock[selectedProductVal] && window.desiredStock[selectedProductVal][color]) 
+            ? window.desiredStock[selectedProductVal][color] 
+            : ["36", "37", "38", "39", "40", "41", "42", "43", "44"];
 
         let missingCount = 0;
-        for (let s = 36; s <= 44; s++) {
-            if (!inStockSizes.includes(s.toString())) missingCount++;
-        }
+        targetSizes.forEach(s => {
+            if (!inStockDetails[s.toString().trim()]) missingCount++;
+        });
 
-        colorsWithMissing.push({ color, missingCount, inStockSizes });
+        colorsWithMissing.push({ color, missingCount, inStockDetails, targetSizes });
     });
 
 
@@ -203,7 +221,7 @@ function renderColorsGrid(colorsData) {
         div.style.textAlign = 'center';
         div.style.fontWeight = '500';
         div.style.fontSize = '14px';
-        div.innerHTML = `${data.color} <br><span style="font-size:11px; color:var(--text-secondary);">${data.missingCount} a pedir</span>`;
+        div.innerHTML = `${data.color}`;
 
         div.addEventListener('click', () => {
             Array.from(colorsGrid.children).forEach(child => {
@@ -216,7 +234,7 @@ function renderColorsGrid(colorsData) {
             selectedColorVal = data.color;
             colorInput.value = ''; // Clear custom input
             colorContainer.style.display = 'none';
-            onColorSelected(data.inStockSizes);
+            onColorSelected(data.inStockDetails, data.targetSizes);
         });
 
         colorsGrid.appendChild(div);
@@ -246,19 +264,19 @@ function renderColorsGrid(colorsData) {
         selectedColorVal = 'NEW';
         colorContainer.style.display = 'block';
         colorInput.focus();
-        onColorSelected([]); // El nuevo color tiene 0 en stock
+        onColorSelected([], ["36", "37", "38", "39", "40", "41", "42", "43", "44"]); // El nuevo color tiene 0 en stock
     });
 
     colorsGrid.appendChild(newColorDiv);
 }
 
-function onColorSelected(inStockSizes = []) {
+function onColorSelected(inStockDetails = {}, targetSizes = ["36", "37", "38", "39", "40", "41", "42", "43", "44"]) {
     sizesGroup.style.display = 'block';
     sizesGrid.innerHTML = '';
 
-    for (let size = 36; size <= 44; size++) {
-        const sizeStr = size.toString();
-        const isInStock = inStockSizes.includes(sizeStr);
+    targetSizes.forEach(sizeStr => {
+        const stockCount = inStockDetails[sizeStr] || 0;
+        const isMissing = stockCount === 0;
 
         const div = document.createElement('div');
         div.style.display = 'flex';
@@ -266,12 +284,11 @@ function onColorSelected(inStockSizes = []) {
         div.style.justifyContent = 'center';
         div.style.gap = '8px';
         div.style.padding = '12px';
+        div.style.position = 'relative';
 
-        // Auto-select styles if missing, transparent if stocked
-        div.style.background = isInStock ? 'transparent' : 'rgba(88, 166, 255, 0.2)';
+        // Estilos base
         div.style.borderRadius = '8px';
-        div.style.border = isInStock ? '1px solid rgba(255, 255, 255, 0.1)' : '1px solid rgba(88, 166, 255, 0.6)';
-        div.style.cursor = isInStock ? 'not-allowed' : 'pointer';
+        div.style.cursor = 'pointer';
         div.style.transition = 'all 0.2s ease';
         div.style.userSelect = 'none';
 
@@ -281,60 +298,41 @@ function onColorSelected(inStockSizes = []) {
         checkbox.id = `size-${sizeStr}`;
         checkbox.name = 'newSizes[]';
         checkbox.style.display = 'none';
-
-        if (isInStock) {
-            checkbox.disabled = true;
-        } else {
-            checkbox.checked = true; // Auto-seleccionar las que faltan
-        }
+        
+        // Todo desmarcado por defecto
+        checkbox.checked = false;
+        div.style.background = 'rgba(255, 255, 255, 0.05)';
+        div.style.border = '1px solid var(--border-color)';
 
         const label = document.createElement('label');
         label.htmlFor = `size-${sizeStr}`;
         label.textContent = sizeStr;
-        label.style.cursor = isInStock ? 'not-allowed' : 'pointer';
-        label.style.color = isInStock ? 'var(--text-secondary)' : 'var(--text-primary)';
+        label.style.cursor = 'pointer';
+        label.style.color = 'var(--text-primary)';
         label.style.marginBottom = '0';
         label.style.fontWeight = '600';
         label.style.fontSize = '16px';
         label.style.pointerEvents = 'none';
 
-        if (isInStock) {
-            const badge = document.createElement('span');
-            badge.textContent = '(Stock)';
-            badge.style.fontSize = '12px';
-            badge.style.display = 'block';
-            badge.style.fontWeight = '500';
-            badge.style.color = 'var(--text-secondary)';
-            badge.style.marginTop = '2px';
+        const badge = document.createElement('span');
+        badge.textContent = stockCount > 0 ? `${stockCount} en stock` : '0 en stock';
+        badge.style.fontSize = '11px';
+        badge.style.display = 'block';
+        badge.style.fontWeight = '500';
+        badge.style.color = stockCount > 0 ? 'var(--text-secondary)' : '#ff4d4d'; // Rojo si falta
+        badge.style.marginTop = '2px';
 
-            const txtContainer = document.createElement('div');
-            txtContainer.style.textAlign = 'center';
-            txtContainer.appendChild(label);
-            txtContainer.appendChild(badge);
-            div.appendChild(checkbox);
-            div.appendChild(txtContainer);
-        } else {
-            const badge = document.createElement('span');
-            badge.textContent = '(A pedir)';
-            badge.style.fontSize = '12px';
-            badge.style.display = 'block';
-            badge.style.fontWeight = '500';
-            badge.style.color = '#58a6ff';
-            badge.style.marginTop = '2px';
+        const txtContainer = document.createElement('div');
+        txtContainer.style.textAlign = 'center';
+        txtContainer.appendChild(label);
+        txtContainer.appendChild(badge);
 
-            const txtContainer = document.createElement('div');
-            txtContainer.style.textAlign = 'center';
-            txtContainer.appendChild(label);
-            txtContainer.appendChild(badge);
-
-            div.appendChild(checkbox);
-            div.appendChild(txtContainer);
-        }
+        div.appendChild(checkbox);
+        div.appendChild(txtContainer);
 
         sizesGrid.appendChild(div);
 
         div.addEventListener('click', (e) => {
-            if (isInStock) return;
             e.preventDefault();
             checkbox.checked = !checkbox.checked;
             checkbox.dispatchEvent(new Event('change'));
@@ -344,13 +342,15 @@ function onColorSelected(inStockSizes = []) {
             if (checkbox.checked) {
                 div.style.background = 'rgba(88, 166, 255, 0.2)';
                 div.style.border = '1px solid rgba(88, 166, 255, 0.6)';
+                badge.style.color = '#58a6ff';
             } else {
                 div.style.background = 'rgba(255, 255, 255, 0.05)';
                 div.style.border = '1px solid var(--border-color)';
+                badge.style.color = stockCount > 0 ? 'var(--text-secondary)' : '#ff4d4d';
             }
             checkFormValidity();
         });
-    }
+    });
     checkFormValidity();
 }
 
