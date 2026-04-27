@@ -4,6 +4,7 @@ let availableStock = [];
 let selectedProductVal = '';
 let selectedColorVal = ''; // Added to track selected color
 let cart = [];
+let currentSizesSelection = {}; // Track quantities for the current selection
 
 // DOM Elements
 const productsGrid = document.getElementById('products-grid');
@@ -273,83 +274,129 @@ function renderColorsGrid(colorsData) {
 function onColorSelected(inStockDetails = {}, targetSizes = ["36", "37", "38", "39", "40", "41", "42", "43", "44"]) {
     sizesGroup.style.display = 'block';
     sizesGrid.innerHTML = '';
+    currentSizesSelection = {}; // Reset selection for the new color
 
     targetSizes.forEach(sizeStr => {
         const stockCount = inStockDetails[sizeStr] || 0;
-        const isMissing = stockCount === 0;
+        currentSizesSelection[sizeStr] = 0;
 
         const div = document.createElement('div');
         div.style.display = 'flex';
+        div.style.flexDirection = 'column';
         div.style.alignItems = 'center';
         div.style.justifyContent = 'center';
-        div.style.gap = '8px';
-        div.style.padding = '12px';
+        div.style.padding = '12px 8px';
         div.style.position = 'relative';
-
-        // Estilos base
-        div.style.borderRadius = '8px';
+        div.style.borderRadius = '12px';
         div.style.cursor = 'pointer';
-        div.style.transition = 'all 0.2s ease';
+        div.style.transition = 'all 0.2s cubic-bezier(0.4, 0, 0.2, 1)';
         div.style.userSelect = 'none';
-
-        const checkbox = document.createElement('input');
-        checkbox.type = 'checkbox';
-        checkbox.value = sizeStr;
-        checkbox.id = `size-${sizeStr}`;
-        checkbox.name = 'newSizes[]';
-        checkbox.style.display = 'none';
-        
-        // Todo desmarcado por defecto
-        checkbox.checked = false;
-        div.style.background = 'rgba(255, 255, 255, 0.05)';
+        div.style.background = 'rgba(255, 255, 255, 0.03)';
         div.style.border = '1px solid var(--border-color)';
+        div.style.minHeight = '70px';
 
-        const label = document.createElement('label');
-        label.htmlFor = `size-${sizeStr}`;
+        // Size Label
+        const label = document.createElement('span');
         label.textContent = sizeStr;
-        label.style.cursor = 'pointer';
+        label.style.fontWeight = '700';
+        label.style.fontSize = '18px';
         label.style.color = 'var(--text-primary)';
-        label.style.marginBottom = '0';
-        label.style.fontWeight = '600';
-        label.style.fontSize = '16px';
-        label.style.pointerEvents = 'none';
 
+        // Stock Badge
         const badge = document.createElement('span');
-        badge.textContent = stockCount > 0 ? `${stockCount} en stock` : '0 en stock';
-        badge.style.fontSize = '11px';
-        badge.style.display = 'block';
+        badge.textContent = stockCount > 0 ? `${stockCount} stock` : 'Sin stock';
+        badge.style.fontSize = '10px';
         badge.style.fontWeight = '500';
-        badge.style.color = stockCount > 0 ? 'var(--text-secondary)' : '#ff4d4d'; // Rojo si falta
+        badge.style.color = stockCount > 0 ? 'var(--text-secondary)' : '#ff4d4d';
         badge.style.marginTop = '2px';
 
-        const txtContainer = document.createElement('div');
-        txtContainer.style.textAlign = 'center';
-        txtContainer.appendChild(label);
-        txtContainer.appendChild(badge);
+        // Quantity Badge (Visible when > 0)
+        const qtyBadge = document.createElement('div');
+        qtyBadge.textContent = '0';
+        qtyBadge.style.position = 'absolute';
+        qtyBadge.style.top = '-8px';
+        qtyBadge.style.right = '-8px';
+        qtyBadge.style.background = 'var(--accent)';
+        qtyBadge.style.color = 'white';
+        qtyBadge.style.width = '24px';
+        qtyBadge.style.height = '24px';
+        qtyBadge.style.borderRadius = '50%';
+        qtyBadge.style.display = 'none';
+        qtyBadge.style.alignItems = 'center';
+        qtyBadge.style.justifyContent = 'center';
+        qtyBadge.style.fontSize = '12px';
+        qtyBadge.style.fontWeight = 'bold';
+        qtyBadge.style.boxShadow = '0 2px 8px rgba(88, 166, 255, 0.4)';
+        qtyBadge.style.border = '2px solid var(--bg-color)';
 
-        div.appendChild(checkbox);
-        div.appendChild(txtContainer);
+        // Decrement Button
+        const decBtn = document.createElement('div');
+        decBtn.innerHTML = '−';
+        decBtn.style.position = 'absolute';
+        decBtn.style.bottom = '4px';
+        decBtn.style.right = '4px';
+        decBtn.style.width = '20px';
+        decBtn.style.height = '20px';
+        decBtn.style.borderRadius = '4px';
+        decBtn.style.background = 'rgba(255, 255, 255, 0.1)';
+        decBtn.style.display = 'none';
+        decBtn.style.alignItems = 'center';
+        decBtn.style.justifyContent = 'center';
+        decBtn.style.fontSize = '14px';
+        decBtn.style.color = 'var(--text-secondary)';
+        decBtn.style.transition = 'all 0.2s';
 
-        sizesGrid.appendChild(div);
-
-        div.addEventListener('click', (e) => {
-            e.preventDefault();
-            checkbox.checked = !checkbox.checked;
-            checkbox.dispatchEvent(new Event('change'));
+        decBtn.addEventListener('click', (e) => {
+            e.stopPropagation();
+            if (currentSizesSelection[sizeStr] > 0) {
+                currentSizesSelection[sizeStr]--;
+                updateSizeUI();
+            }
         });
 
-        checkbox.addEventListener('change', () => {
-            if (checkbox.checked) {
-                div.style.background = 'rgba(88, 166, 255, 0.2)';
-                div.style.border = '1px solid rgba(88, 166, 255, 0.6)';
-                badge.style.color = '#58a6ff';
+        decBtn.addEventListener('mouseover', () => {
+            decBtn.style.background = 'rgba(248, 81, 73, 0.2)';
+            decBtn.style.color = 'var(--error)';
+        });
+        decBtn.addEventListener('mouseout', () => {
+            decBtn.style.background = 'rgba(255, 255, 255, 0.1)';
+            decBtn.style.color = 'var(--text-secondary)';
+        });
+
+        function updateSizeUI() {
+            const count = currentSizesSelection[sizeStr];
+            if (count > 0) {
+                div.style.background = 'rgba(88, 166, 255, 0.12)';
+                div.style.border = '1px solid rgba(88, 166, 255, 0.5)';
+                div.style.transform = 'scale(1.02)';
+                qtyBadge.style.display = 'flex';
+                qtyBadge.textContent = count;
+                decBtn.style.display = 'flex';
             } else {
-                div.style.background = 'rgba(255, 255, 255, 0.05)';
+                div.style.background = 'rgba(255, 255, 255, 0.03)';
                 div.style.border = '1px solid var(--border-color)';
-                badge.style.color = stockCount > 0 ? 'var(--text-secondary)' : '#ff4d4d';
+                div.style.transform = 'scale(1)';
+                qtyBadge.style.display = 'none';
+                decBtn.style.display = 'none';
             }
             checkFormValidity();
+        }
+
+        div.appendChild(label);
+        div.appendChild(badge);
+        div.appendChild(qtyBadge);
+        div.appendChild(decBtn);
+
+        div.addEventListener('click', () => {
+            currentSizesSelection[sizeStr]++;
+            updateSizeUI();
+            
+            // Subtle click effect
+            div.style.transform = 'scale(0.95)';
+            setTimeout(() => { if(currentSizesSelection[sizeStr] > 0) div.style.transform = 'scale(1.02)'; }, 100);
         });
+
+        sizesGrid.appendChild(div);
     });
     checkFormValidity();
 }
@@ -359,7 +406,7 @@ priceInput.addEventListener('input', checkFormValidity);
 newProductInput.addEventListener('input', checkFormValidity);
 
 function checkFormValidity() {
-    const checkedBoxes = document.querySelectorAll('input[name="newSizes[]"]:checked');
+    const totalSelected = Object.values(currentSizesSelection).reduce((acc, val) => acc + val, 0);
     const customColorVal = colorInput.value.trim();
     const customProductVal = newProductInput.value.trim();
 
@@ -367,7 +414,7 @@ function checkFormValidity() {
     let finalColor = selectedColorVal === 'NEW' ? customColorVal : selectedColorVal;
     let finalProduct = selectedProductVal === 'NEW' ? customProductVal : selectedProductVal;
 
-    if (checkedBoxes.length > 0 && priceInput.value.trim() !== '' && finalColor !== '' && finalProduct !== '') {
+    if (totalSelected > 0 && priceInput.value.trim() !== '' && finalColor !== '' && finalProduct !== '') {
         addToCartBtn.disabled = false;
     } else {
         addToCartBtn.disabled = true;
@@ -386,7 +433,12 @@ addToCartBtn.addEventListener('click', (e) => {
     const priceRaw = priceInput.value.replace(',', '.');
     const boughtPrice = parseFloat(priceRaw);
 
-    const selectedSizes = Array.from(document.querySelectorAll('input[name="newSizes[]"]:checked')).map(cb => cb.value);
+    const selectedSizes = [];
+    for (const [size, qty] of Object.entries(currentSizesSelection)) {
+        for (let i = 0; i < qty; i++) {
+            selectedSizes.push(size);
+        }
+    }
 
     if (selectedSizes.length === 0 || finalProduct === '') return;
 
@@ -436,6 +488,15 @@ function updateCartUI() {
             const itemTotalPrice = item.boughtPrice * pairsCount;
             totalPrice += itemTotalPrice;
 
+            // Group sizes for cleaner display: "40, 40, 41" -> "40 (x2), 41"
+            const sizeCounts = item.sizes.reduce((acc, s) => {
+                acc[s] = (acc[s] || 0) + 1;
+                return acc;
+            }, {});
+            const sizeString = Object.entries(sizeCounts)
+                .map(([size, count]) => count > 1 ? `${size} (x${count})` : size)
+                .join(', ');
+
             const div = document.createElement('div');
             div.className = 'cart-item';
             div.innerHTML = `
@@ -444,7 +505,7 @@ function updateCartUI() {
                     <button type="button" class="remove-btn" onclick="removeFromCart(${item.id})" title="Eliminar">🗑️</button>
                 </div>
                 <div style="display:flex; justify-content:space-between; align-items:center;">
-                    <div class="cart-item-sizes">Tallas: ${item.sizes.join(', ')} (${pairsCount} pares)</div>
+                    <div class="cart-item-sizes">Tallas: ${sizeString} (${pairsCount} pares)</div>
                     <div class="cart-item-price">${itemTotalPrice.toFixed(2)} €</div>
                 </div>
             `;
